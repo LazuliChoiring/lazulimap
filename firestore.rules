@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - displayName: string
+    //   - photoURL: string
+    //   - email: string
+    //   - favorites: array (numbers)
+    //   - checkIns: array (numbers)
+    //
+    // Collection: notes
+    // Document ID: {noteId}
+    // Fields:
+    //   - siteId: number (required)
+    //   - content: string (required, max 1000 chars)
+    //   - author: string (required)
+    //   - authorUid: string (required)
+    //   - timestamp: number (required)
+    //
+    // ===============================================================
+
+    // Collection: moments
+    // Document ID: {momentId}
+    // Fields:
+    //   - authorUid: string (required)
+    //   - authorName: string (required)
+    //   - authorPhoto: string (required)
+    //   - content: string (required, max 200 chars)
+    //   - siteId: number (required)
+    //   - siteName: string (required)
+    //   - timestamp: timestamp (required)
+    //
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['siteId', 'content', 'author', 'authorUid', 'timestamp']) &&
+             data.siteId is number &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 1000 &&
+             data.author is string && data.author.size() <= 50 &&
+             data.authorUid == request.auth.uid &&
+             data.timestamp is number;
+    }
+
+    function isValidMoment(data) {
+      return data.keys().hasAll(['authorUid', 'authorName', 'authorPhoto', 'content', 'siteId', 'siteName', 'timestamp']) &&
+             (data.authorUid == request.auth.uid || data.authorUid.matches("MOCK_.*")) &&
+             data.authorName is string && data.authorName.size() <= 50 &&
+             data.authorPhoto is string &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 200 &&
+             data.siteId is number &&
+             data.siteName is string &&
+             data.timestamp is timestamp;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid']) &&
+             (data.uid == request.auth.uid || data.uid.matches("MOCK_.*")) &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 50)) &&
+             (!('favorites' in data) || data.favorites is list) &&
+             (!('checkIns' in data) || data.checkIns is list) &&
+             (!('friends' in data) || data.friends is list);
+    }
+
+    function isFriend(userId) {
+      let path = /databases/$(database)/documents/users/$(userId);
+      return isAuthenticated() && 
+             exists(path) && 
+             'friends' in get(path).data && 
+             get(path).data.friends is list &&
+             get(path).data.friends.contains(request.auth.uid);
+    }
+
+    function isParticipant(chatId) {
+      return isAuthenticated() && (chatId.matches(".*" + request.auth.uid + ".*"));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Allow reading if authenticated (to find friends by UID)
+      allow read: if isAuthenticated();
+      allow create, update: if (isOwner(userId) || (isAuthenticated() && userId.matches("MOCK_.*"))) && isValidUser(request.resource.data);
+    }
+
+    match /friend_requests/{requestId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.fromUid || request.auth.uid == resource.data.toUid);
+      allow create: if isAuthenticated() && (request.resource.data.fromUid == request.auth.uid || request.resource.data.fromUid.matches("MOCK_.*"));
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.toUid || request.auth.uid == resource.data.fromUid);
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.fromUid || request.auth.uid == resource.data.toUid);
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && isParticipant(resource.data.chatId);
+      allow create: if isAuthenticated() && isParticipant(request.resource.data.chatId) && request.resource.data.senderUid == request.auth.uid;
+    }
+
+    match /notes/{noteId} {
+      allow read: if true; // Shared notes are public
+      allow create: if isAuthenticated() && isValidNote(request.resource.data);
+      allow update, delete: if isAuthenticated() && resource.data.authorUid == request.auth.uid;
+    }
+
+    match /moments/{momentId} {
+      // Moments are like ink on temple walls, public for all to appreciate
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidMoment(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.authorUid == request.auth.uid;
+    }
+  }
+}

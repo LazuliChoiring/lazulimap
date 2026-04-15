@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "favorites": { "type": "array", "items": { "type": "number" } },
+        "checkIns": { "type": "array", "items": { "type": "number" } },
+        "friends": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["uid"]
+    },
+    "FriendRequest": {
+      "title": "Friend Request",
+      "description": "A request to become fellow practitioners",
+      "type": "object",
+      "properties": {
+        "fromUid": { "type": "string" },
+        "fromName": { "type": "string" },
+        "toUid": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["fromUid", "toUid", "status", "timestamp"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A private message between fellow practitioners",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["chatId", "senderUid", "text", "timestamp"]
+    },
+    "Note": {
+      "title": "Note",
+      "description": "A travelogue note shared by a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "siteId": { "type": "number" },
+        "content": { "type": "string" },
+        "author": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["siteId", "content", "authorUid", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/friend_requests/{requestId}": {
+      "schema": "FriendRequest",
+      "description": "Pending and historical friend requests"
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat messages between friends"
+    },
+    "/notes/{noteId}": {
+      "schema": "Note",
+      "description": "Shared travelogue notes"
+    }
+  }
+}

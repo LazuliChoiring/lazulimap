@@ -1,0 +1,7 @@
+{
+  "name": "寻筑觅禅",
+  "description": "悠然觅真意，禅隐石不言。尘霁灵光现，足下即心莲。—— 一款探索古迹建筑与禅意智慧的数字化地图平台。",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
