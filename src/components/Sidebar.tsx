@@ -74,17 +74,21 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   // 1. "依次结缘" - Sites not visited, sorted by distance
+  // Limit to top 20 nearest to avoid overwhelming the user
   const fateSites = useMemo(() => {
     const unvisited = sites.filter(site => !checkIns.some(c => c.siteId === site.id));
     
+    let sorted = [...unvisited];
     if (userLocation) {
-      return [...unvisited].sort((a, b) => {
+      sorted.sort((a, b) => {
         const distA = getDistance(userLocation[1], userLocation[0], a.coordinates[1], a.coordinates[0]);
         const distB = getDistance(userLocation[1], userLocation[0], b.coordinates[1], b.coordinates[0]);
         return distA - distB;
       });
     }
-    return unvisited;
+    
+    // Only show the top 20 "waiting for fate" sites
+    return sorted.slice(0, 20);
   }, [sites, checkIns, userLocation]);
 
   // 2. "云游小册" - Sites visited, sorted by date
@@ -244,19 +248,29 @@ const Sidebar: React.FC<SidebarProps> = ({
               <AnimatePresence mode="wait">
                 {activeTab === 'fate' && (
                   <motion.div key="fate" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-                    {fateSites.map((site, index) => (
-                      <button
-                        key={site.id}
-                        onClick={() => onSelectSite(site)}
-                        className="w-full text-left p-4 bg-white/50 border border-[#D4AF37]/10 rounded-xl flex items-center justify-between group"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-bold text-[#1A1A1A] calligraphy truncate">{site.name}</h3>
-                          <p className="text-[10px] text-slate-400 truncate">{site.address}</p>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-[#D4AF37]/40" />
-                      </button>
-                    ))}
+                    {fateSites.map((site, index) => {
+                      const distance = userLocation ? getDistance(userLocation[1], userLocation[0], site.coordinates[1], site.coordinates[0]) : null;
+                      return (
+                        <button
+                          key={site.id}
+                          onClick={() => onSelectSite(site)}
+                          className="w-full text-left p-4 bg-white/50 border border-[#D4AF37]/10 rounded-xl flex items-center justify-between group"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <h3 className="text-base font-bold text-[#1A1A1A] calligraphy truncate">{site.name}</h3>
+                              {distance !== null && (
+                                <span className="text-[10px] font-bold font-mono text-white bg-[#B22222] px-2.5 py-0.5 rounded-full shrink-0 shadow-sm">
+                                  {distance < 1 ? `${(distance * 1000).toFixed(0)}m` : `${distance.toFixed(1)}km`}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400 truncate">{site.address}</p>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-[#D4AF37]/40 ml-2" />
+                        </button>
+                      );
+                    })}
                   </motion.div>
                 )}
                 {activeTab === 'history' && (

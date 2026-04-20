@@ -13,7 +13,9 @@ interface DetailsPanelProps {
   isFavorite: boolean;
   isCheckedIn: boolean;
   onToggleFavorite: () => void;
-  onToggleCheckIn: () => Promise<string | null>;
+  onToggleCheckIn: (siteId: number, targetState?: boolean) => Promise<string | null>;
+  onShowSuccess?: (siteName: string) => void;
+  onShowSeal?: (hookCharacters?: string) => void;
 }
 
 const DetailsPanel: React.FC<DetailsPanelProps> = ({ 
@@ -22,7 +24,9 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({
   isFavorite, 
   isCheckedIn, 
   onToggleFavorite, 
-  onToggleCheckIn 
+  onToggleCheckIn,
+  onShowSuccess,
+  onShowSeal
 }) => {
   const [activeTab, setActiveTab] = useState<'info' | 'story' | 'travelogue'>('info');
   const [aiStory, setAiStory] = useState<string | null>(null);
@@ -109,24 +113,27 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({
   const age = site ? currentYear - site.yearBuilt : 0;
 
   const handleCheckIn = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!site) return;
     addCheckRipple(e);
     
-    if (!isCheckedIn && auth.currentUser) {
+    const target = !isCheckedIn;
+    // Immediate feedback through optimistic update
+    onToggleCheckIn(site.id, target);
+    
+    // If checking in (target == true)
+    if (target) {
       setShowMomentInput(true);
     } else {
-      await onToggleCheckIn();
+      setShowMomentInput(false);
     }
   };
 
   const submitCheckInWithMoment = async () => {
-    if (!site || !auth.currentUser) return;
+    if (!site) return;
 
     try {
-      // 1. Perform the check-in
-      await onToggleCheckIn();
-
-      // 2. If there's a moment, save it to the 'moments' collection
-      if (newMoment.trim()) {
+      // 1. Save the moment if provided and logged in
+      if (newMoment.trim() && auth.currentUser) {
         await addDoc(collection(db, 'moments'), {
           authorUid: auth.currentUser.uid,
           authorName: localStorage.getItem('user_name') || auth.currentUser.displayName || '匿名同修',
@@ -134,12 +141,17 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({
           content: newMoment.trim(),
           siteId: site.id,
           siteName: site.buildingName,
-          timestamp: serverTimestamp()
+          timestamp: serverTimestamp(),
+          location: site.district
         });
       }
 
       setNewMoment('');
       setShowMomentInput(false);
+      
+      // Trigger sequential popups defined in App.tsx
+      onShowSuccess?.(site.buildingName);
+      onShowSeal?.(hook);
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'moments');
     }
@@ -220,125 +232,150 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({
 
   if (isMobile) {
     return (
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: currentSnapY }}
-        exit={{ y: '100%' }}
-        drag="y"
-        dragConstraints={{ top: 0, bottom: window.innerHeight }}
-        dragElastic={0.1}
-        onDragEnd={handleDragEnd}
-        transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className="fixed inset-x-0 bottom-0 z-[150] h-[100vh] flex flex-col"
-      >
-        <div className="flex-1 bg-[#FDFBF7]/95 backdrop-blur-xl border-t border-[#D4AF37]/30 shadow-[0_-20px_50px_rgba(0,0,0,0.15)] rounded-t-[32px] flex flex-col overflow-hidden">
-          {/* Drag Handle */}
-          <div className="w-full py-4 flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing shrink-0">
-            <div className="w-12 h-1.5 bg-[#D4AF37]/30 rounded-full" />
+      <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+        {/* Backdrop for mobile modal */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          onClick={onClose}
+        />
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="relative w-full max-h-[90vh] bg-[#FDFBF7] border-2 border-[#D4AF37] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col overflow-hidden rounded-sm"
+        >
+          {/* Header Image for Mobile Modal */}
+          <div className="relative h-[180px] shrink-0">
+            <img src={site.images[0]} alt={site.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#FDFBF7] via-transparent to-transparent" />
+            
+            {/* Close Button */}
+            <button 
+              onClick={onClose} 
+              className="absolute top-4 right-4 p-2 bg-black/40 backdrop-blur-md rounded-full text-white z-20 hover:bg-[#B22222] transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Title Overlay */}
+            <div className="absolute bottom-4 left-6 right-6">
+              <h2 className="text-2xl font-bold text-[#1A1A1A] calligraphy leading-tight drop-shadow-sm">{site.buildingName}</h2>
+            </div>
           </div>
 
-          {/* Content Area */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
-            {/* Header Image for Mobile */}
-            <div className="relative h-[200px] shrink-0">
-              <img src={site.images[0]} alt={site.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#FDFBF7] to-transparent" />
-              <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black/20 backdrop-blur-md rounded-full text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="px-6 pb-6 -mt-12 relative z-10">
-              <div className="flex items-center gap-3 mb-2">
+          {/* Scrollable Content Area */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col px-6">
+            <div className="py-4">
+              <div className="flex items-center gap-3 mb-4">
                 <span className="px-3 py-1 bg-[#B22222] text-white text-[10px] font-black uppercase tracking-widest">{site.religion}</span>
-                <span className="text-xs text-slate-400 font-medium">{site.address}</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter truncate">{site.address}</span>
               </div>
-              <h2 className="text-3xl font-bold text-[#1A1A1A] calligraphy leading-tight">{site.buildingName}</h2>
               
-              {/* Tabs for Mobile */}
-              <div className="flex border-b border-[#D4AF37]/10 mt-6">
+              {/* Tabs for Mobile Modal */}
+              <div className="flex border-b border-[#D4AF37]/10 mb-6 sticky top-0 bg-[#FDFBF7] z-10">
                 {['info', 'story', 'travelogue'].map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab as any)}
-                    className={`flex-1 py-4 text-[10px] font-black tracking-widest transition-all relative uppercase ${activeTab === tab ? 'text-[#B22222]' : 'text-slate-400'}`}
+                    className={`flex-1 py-4 text-[9px] font-black tracking-widest transition-all relative uppercase ${activeTab === tab ? 'text-[#B22222]' : 'text-slate-400'}`}
                   >
-                    {tab === 'info' ? '档案' : tab === 'story' ? '传说' : '游记'}
+                    {tab === 'info' ? '档案 · HISTORY' : tab === 'story' ? '传说 · FOLKLORE' : '游记 · TRAVELOGUE'}
                     {activeTab === tab && (
-                      <motion.div layoutId="activeTabMobileDetails" className="absolute bottom-0 left-4 right-4 h-0.5 bg-[#B22222]" />
+                      <motion.div layoutId="activeTabMobileDetails" className="absolute bottom-0 left-2 right-2 h-0.5 bg-[#B22222]" />
                     )}
                   </button>
                 ))}
               </div>
 
               {/* Tab Content */}
-              <div className="py-6">
+              <div className="pb-6">
                 <AnimatePresence mode="wait">
                   {activeTab === 'info' && (
-                    <motion.div key="info" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-white border border-[#D4AF37]/10 rounded-sm">
-                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-1">始建年代</p>
-                          <p className="text-lg font-bold text-[#1A1A1A]">{site.era}</p>
+                    <motion.div key="info" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-white border border-[#D4AF37]/10 rounded-sm">
+                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-1">时代</p>
+                          <p className="text-base font-bold text-[#1A1A1A]">{site.era}</p>
                         </div>
-                        <div className="p-4 bg-[#B22222] text-white rounded-sm">
-                          <p className="text-[8px] text-white/60 font-bold uppercase tracking-widest mb-1">岁月沉淀</p>
-                          <p className="text-lg font-bold">约 {age} 载</p>
+                        <div className="p-3 bg-[#B22222] text-white rounded-sm">
+                          <p className="text-[8px] text-white/60 font-bold uppercase tracking-widest mb-1">岁月</p>
+                          <p className="text-base font-bold">约 {age} 载</p>
                         </div>
                       </div>
-                      <p className="text-base text-[#2C3E50] leading-relaxed italic font-medium border-l-2 border-[#D4AF37] pl-4">
-                        “{site.recommendation}”
-                      </p>
-                      <div className="text-[#34495E] text-base leading-relaxed font-serif">
+                      <div className="p-4 bg-white/50 border-l-2 border-[#D4AF37]/40">
+                        <p className="text-sm text-[#2C3E50] leading-relaxed italic font-medium">
+                          “{site.recommendation}”
+                        </p>
+                      </div>
+                      <div className="text-[#34495E] text-sm leading-relaxed font-serif text-justify">
                         {cleanBackground}
                       </div>
                     </motion.div>
                   )}
                   {activeTab === 'story' && (
-                    <motion.div key="story" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                      <div className="text-[#2C3E50] leading-relaxed text-lg font-serif italic border-l-2 border-[#D4AF37]/30 pl-6">
+                    <motion.div key="story" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                      <div className="text-[#2C3E50] leading-relaxed text-base font-serif italic border-l-2 border-[#D4AF37]/30 pl-4 py-1">
                         {aiStory}
                       </div>
                       <button
                         onClick={generateNewStory}
                         disabled={isGenerating}
-                        className="w-full py-4 border-2 border-[#B22222] text-[#B22222] font-black text-xs tracking-widest flex items-center justify-center gap-3 uppercase"
+                        className="w-full py-3 border-2 border-[#B22222] text-[#B22222] font-black text-[10px] tracking-widest flex items-center justify-center gap-3 uppercase active:scale-95 transition-transform"
                       >
-                        <Sparkles className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
+                        <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
                         {isGenerating ? '正在挖掘...' : 'AI 深度挖掘传说'}
                       </button>
                     </motion.div>
                   )}
                   {activeTab === 'travelogue' && (
-                    <motion.div key="travelogue" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+                    <motion.div key="travelogue" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                       {/* Couplets */}
                       {site.couplets && site.couplets.length > 0 && (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           {site.couplets.map((c, i) => (
-                            <div key={i} className="p-4 bg-white border border-[#D4AF37]/10 rounded-sm">
-                              <p className="text-[8px] text-[#B22222] font-bold tracking-widest mb-2 uppercase">{c.location}</p>
+                            <div key={i} className="p-3 bg-white border border-[#D4AF37]/10 rounded-sm">
+                              <p className="text-[8px] text-[#B22222] font-bold tracking-widest mb-1 uppercase text-center">{c.location}</p>
                               {c.content.map((line, li) => (
-                                <p key={li} className="text-lg font-serif text-[#1A1A1A] calligraphy text-center">{line}</p>
+                                <p key={li} className="text-base font-serif text-[#1A1A1A] calligraphy text-center tracking-widest">{line}</p>
                               ))}
                             </div>
                           ))}
                         </div>
                       )}
-                      {/* Notes */}
+                      {/* Notes Section for Mobile */}
                       <div className="space-y-4">
-                        <textarea
-                          value={newNote}
-                          onChange={(e) => setNewNote(e.target.value)}
-                          placeholder="记录感悟..."
-                          className="w-full p-4 bg-white border border-[#D4AF37]/20 rounded-sm text-sm font-serif min-h-[100px]"
-                        />
-                        <button
-                          onClick={handleAddNote}
-                          disabled={!newNote.trim()}
-                          className="w-full py-4 bg-[#1A1A1A] text-white font-black text-[10px] tracking-widest uppercase"
-                        >
-                          记下一笔
-                        </button>
+                        <div className="space-y-3">
+                          <textarea
+                            value={newNote}
+                            onChange={(e) => setNewNote(e.target.value)}
+                            placeholder="记录感悟..."
+                            className="w-full p-4 bg-white border border-[#D4AF37]/20 rounded-sm text-sm font-serif min-h-[100px] outline-none"
+                          />
+                          <button
+                            onClick={handleAddNote}
+                            disabled={!newNote.trim()}
+                            className="w-full py-4 bg-[#1A1A1A] text-white font-black text-[10px] tracking-widest uppercase active:scale-95 transition-transform"
+                          >
+                            记下一笔
+                          </button>
+                        </div>
+                        
+                        <div className="pt-4 border-t border-[#D4AF37]/10 space-y-4">
+                          {userNotes.map((note) => (
+                            <div key={note.id} className="text-sm">
+                              <div className="flex justify-between mb-1">
+                                <span className="font-bold text-[#B22222] text-[10px] tracking-widest uppercase">{note.author}</span>
+                                <span className="text-[8px] text-slate-400">{new Date(note.timestamp).toLocaleDateString()}</span>
+                              </div>
+                              <p className="font-serif italic text-slate-600 line-clamp-3">{note.content}</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </motion.div>
                   )}
@@ -347,25 +384,84 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({
             </div>
           </div>
 
-          {/* Footer Actions for Mobile */}
-          <div className="p-6 bg-white border-t border-[#D4AF37]/10 flex gap-4 shrink-0">
+          {/* Achievement Sequence & Action Buttons Logic */}
+          <AnimatePresence>
+            {showMomentInput && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                  onClick={() => setShowMomentInput(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  className="relative w-full max-w-sm bg-[#FDFBF7] border-2 border-[#D4AF37] p-6 shadow-2xl rounded-sm"
+                >
+                  <div className="flex items-center gap-3 text-[#B22222] mb-4">
+                    <PenTool className="w-5 h-5" />
+                    <h3 className="text-sm font-black tracking-[0.2em] uppercase calligraphy">留下此时此刻的心得</h3>
+                  </div>
+                  <textarea
+                    value={newMoment}
+                    onChange={(e) => setNewMoment(e.target.value)}
+                    placeholder="于这古迹禅意间，心有所感..."
+                    className="w-full p-4 bg-white border border-[#D4AF37]/20 rounded-sm text-base font-serif italic focus:ring-1 focus:ring-[#B22222] outline-none min-h-[120px]"
+                    autoFocus
+                  />
+                  <div className="flex gap-3 mt-6">
+                    <button 
+                      onClick={() => {
+                        setShowMomentInput(false);
+                        onShowSuccess?.(site.buildingName);
+                        onShowSeal?.(hook);
+                        onClose();
+                      }}
+                      className="flex-1 py-3 text-[10px] font-black tracking-widest text-slate-400 uppercase calligraphy"
+                    >
+                      暂不留言
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        await submitCheckInWithMoment();
+                        onClose();
+                      }}
+                      className="flex-[2] py-3 bg-[#B22222] text-white text-[10px] font-black tracking-widest uppercase calligraphy rounded-sm shadow-md active:scale-95 transition-transform"
+                    >
+                      确认签到
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* Action Buttons at Bottom */}
+          <div className="p-4 bg-white border-t border-[#D4AF37]/10 flex gap-3 shrink-0">
             <button
               onClick={handleFavoriteClick}
-              className={`flex-1 py-4 font-black text-[10px] tracking-widest flex items-center justify-center gap-2 border-2 transition-all uppercase ${isFavorite ? 'bg-[#B22222] border-[#B22222] text-white' : 'border-slate-200 text-slate-500'}`}
+              className={`flex-1 py-3 font-black text-[10px] tracking-widest flex items-center justify-center gap-2 border-2 transition-all uppercase ${isFavorite ? 'bg-[#B22222] border-[#B22222] text-white' : 'border-slate-200 text-slate-500'}`}
             >
-              <Sparkles className="w-4 h-4" />
-              {isFavorite ? '静候缘起' : '一时缘起'}
+              <Sparkles className="w-3.5 h-3.5" />
+              <span className="calligraphy">
+                {isFavorite ? '静候缘起' : '一时缘起'}
+              </span>
             </button>
             <button
               onClick={handleCheckIn}
-              className={`flex-1 py-4 font-black text-[10px] tracking-widest flex items-center justify-center gap-2 border-2 transition-all uppercase ${isCheckedIn ? 'bg-[#1A1A1A] border-[#1A1A1A] text-white' : 'border-slate-200 text-slate-500'}`}
+              className={`flex-1 py-3 font-black text-[10px] tracking-widest flex items-center justify-center gap-2 border-2 transition-all uppercase ${isCheckedIn ? 'bg-[#1A1A1A] border-[#1A1A1A] text-white' : 'border-slate-200 text-slate-500'}`}
             >
-              <Footprints className="w-4 h-4" />
-              {isCheckedIn ? '云游到此' : '一次接引'}
+              <Footprints className="w-3.5 h-3.5" />
+              <span className="calligraphy">
+                {isCheckedIn ? '云游到此' : '一次接引'}
+              </span>
             </button>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     );
   }
 
@@ -706,40 +802,58 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({
       <div className="p-10 border-t border-[#D4AF37]/10 bg-white flex flex-col gap-6 shrink-0">
         <AnimatePresence>
           {showMomentInput && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="bg-[#F5F2ED] p-6 rounded-sm border border-[#D4AF37]/20 space-y-4 mb-4">
-                <div className="flex items-center gap-2 text-[#B22222]">
-                  <PenTool className="w-4 h-4" />
-                  <span className="text-xs font-bold tracking-widest calligraphy">留下此时此刻的心得 (墨宝)</span>
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={() => setShowMomentInput(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-md bg-[#FDFBF7] border-2 border-[#D4AF37] p-10 shadow-2xl rounded-sm"
+              >
+                <div className="flex items-center gap-4 text-[#B22222] mb-6">
+                  <PenTool className="w-6 h-6" />
+                  <h3 className="text-xl font-bold tracking-[0.3em] uppercase calligraphy">留下此时此刻的心得</h3>
                 </div>
+                <p className="text-sm text-slate-500 mb-6 font-serif italic">
+                  “一念起处，众缘相会。于此地留下足迹，亦是心中一抹清凉。”
+                </p>
                 <textarea
                   value={newMoment}
                   onChange={(e) => setNewMoment(e.target.value)}
-                  placeholder="一句话感悟..."
-                  className="w-full p-4 bg-white border border-[#D4AF37]/20 rounded-sm text-base font-serif italic focus:ring-1 focus:ring-[#B22222] outline-none"
-                  rows={2}
+                  placeholder="于这古迹禅意间，心有所感..."
+                  className="w-full p-6 bg-white border border-[#D4AF37]/20 rounded-sm text-lg font-serif italic focus:ring-1 focus:ring-[#B22222] outline-none min-h-[160px]"
+                  autoFocus
                 />
-                <div className="flex gap-3">
+                <div className="flex gap-4 mt-8">
                   <button 
-                    onClick={() => setShowMomentInput(false)}
-                    className="flex-1 py-2 text-xs font-bold text-slate-400 hover:text-slate-600 calligraphy"
+                    onClick={() => {
+                      setShowMomentInput(false);
+                      onShowSuccess?.(site.buildingName);
+                      onShowSeal?.(hook);
+                      onClose();
+                    }}
+                    className="flex-1 py-4 text-xs font-black tracking-[0.3em] text-slate-400 hover:text-slate-600 uppercase calligraphy"
                   >
                     暂不留言
                   </button>
                   <button 
-                    onClick={submitCheckInWithMoment}
-                    className="flex-[2] py-2 bg-[#B22222] text-white text-xs font-bold tracking-widest calligraphy rounded-sm shadow-md"
+                    onClick={async () => {
+                      await submitCheckInWithMoment();
+                      onClose();
+                    }}
+                    className="flex-[2] py-4 bg-[#1A1A1A] text-white text-xs font-black tracking-[0.3em] uppercase calligraphy rounded-sm shadow-xl hover:bg-[#B22222] transition-colors active:scale-95"
                   >
-                    确认签到
+                    确认签到 · 円满
                   </button>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 

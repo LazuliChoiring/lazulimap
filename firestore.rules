@@ -90,6 +90,12 @@ service cloud.firestore {
       return isAuthenticated() && (chatId.matches(".*" + request.auth.uid + ".*"));
     }
 
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.email == "liushujia553@gmail.com" && 
+             request.auth.token.email_verified == true;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -97,7 +103,7 @@ service cloud.firestore {
     match /users/{userId} {
       // Allow reading if authenticated (to find friends by UID)
       allow read: if isAuthenticated();
-      allow create, update: if (isOwner(userId) || (isAuthenticated() && userId.matches("MOCK_.*"))) && isValidUser(request.resource.data);
+      allow create, update: if (isOwner(userId) || (isAuthenticated() && userId.matches("MOCK_.*")) || isAdmin()) && isValidUser(request.resource.data);
     }
 
     match /friend_requests/{requestId} {

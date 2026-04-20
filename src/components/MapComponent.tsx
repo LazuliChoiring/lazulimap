@@ -326,6 +326,57 @@ const MapComponent: React.FC<MapComponentProps> = ({
   const { isCityLevel, stats } = getStats();
   const isMobile = useMediaQuery('(max-width: 768px)');
 
+  // Calculate district centers
+  const districtCenters = useMemo(() => {
+    const centers: Record<string, [number, number]> = {};
+    const districtCoords: Record<string, [number, number][]> = {};
+    
+    sites.forEach(site => {
+      if (!districtCoords[site.district]) districtCoords[site.district] = [];
+      districtCoords[site.district].push(site.coordinates);
+    });
+
+    Object.entries(districtCoords).forEach(([district, coords]) => {
+      const avgLng = coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
+      const avgLat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
+      centers[district] = [avgLng, avgLat];
+    });
+
+    // Special case for Hangzhou city center
+    centers['杭州市'] = [120.153576, 30.287459];
+    
+    return centers;
+  }, [sites]);
+
+  const handleDistrictClick = (district: string) => {
+    if (!amapInstance.current) return;
+    
+    if (district === '杭州市') {
+      amapInstance.current.setZoomAndCenter(11, [120.153576, 30.287459], false, 1200);
+      return;
+    }
+
+    // Collect all markers belonging to this district
+    const districtMarkers: any[] = [];
+    markersRef.current.forEach((marker) => {
+      const site = marker.getExtData() as ReligiousSite;
+      if (site && site.district === district) {
+        districtMarkers.push(marker);
+      }
+    });
+
+    if (districtMarkers.length > 0) {
+      // Use higher padding to avoid UI overlaps on mobile (sidebar/panel)
+      const padding: [number, number, number, number] = isMobile ? [100, 40, 320, 40] : [100, 100, 100, 100];
+      amapInstance.current.setFitView(districtMarkers, false, padding, 14);
+    } else {
+      const center = districtCenters[district];
+      if (center) {
+        amapInstance.current.setZoomAndCenter(14, center, false, 1200);
+      }
+    }
+  };
+
   return (
     <div className="w-full h-full relative">
       <div 
@@ -336,7 +387,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
       />
       
       {/* Stats Overlay */}
-      <div className={`absolute z-20 flex flex-col gap-3 pointer-events-none transition-all duration-500 ${isMobile ? 'top-20 right-6 items-end' : 'bottom-10 left-10'}`}>
+      <div className={`absolute z-20 flex flex-col gap-3 transition-all duration-500 ${isMobile ? 'top-20 right-6 items-end' : 'bottom-10 left-10'}`}>
         <motion.div 
           layout
           initial={{ opacity: 0, scale: 0.9 }}
@@ -344,14 +395,18 @@ const MapComponent: React.FC<MapComponentProps> = ({
           transition={{ type: 'spring', damping: 25, stiffness: 120 }}
           className={`${isMobile ? 'bg-white/60 backdrop-blur-md p-3 rounded-2xl border border-[#D4AF37]/20 shadow-lg max-w-[140px]' : 'bg-white/90 backdrop-blur-md p-4 border border-[#D4AF37]/30 shadow-2xl rounded-sm'}`}
         >
-          <motion.div layout className={`flex items-center gap-2 ${isMobile ? 'mb-2' : 'mb-3'}`}>
+          <motion.div 
+            layout 
+            className={`flex items-center gap-2 ${isMobile ? 'mb-2' : 'mb-3'} cursor-pointer hover:opacity-70 transition-opacity pointer-events-auto`}
+            onClick={() => handleDistrictClick('杭州市')}
+          >
             <div className={`w-1 h-3 bg-[#B22222] ${isMobile ? 'rounded-full' : ''}`} />
             <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} font-black text-[#1A1A1A] tracking-[0.2em] uppercase`}>
-              {isCityLevel ? '全市' : '区域'}
+              {isCityLevel ? '全市概览' : '查看全市'}
             </span>
           </motion.div>
           
-          <motion.div layout className={`${isMobile ? 'space-y-2' : 'space-y-4'}`}>
+          <motion.div layout className={`${isMobile ? 'space-y-2' : 'space-y-4'} pointer-events-auto`}>
             <AnimatePresence mode="popLayout">
               {Object.entries(stats).map(([name, data]) => (
                 <motion.div 
@@ -360,17 +415,18 @@ const MapComponent: React.FC<MapComponentProps> = ({
                   initial={{ opacity: 0, x: isMobile ? 10 : -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: isMobile ? -10 : 10 }}
-                  className={`${isMobile ? 'min-w-[100px]' : 'min-w-[160px]'}`}
+                  className={`${isMobile ? 'min-w-[100px]' : 'min-w-[160px]'} cursor-pointer group/stat`}
+                  onClick={() => handleDistrictClick(name)}
                 >
                   <div className="flex justify-between items-end mb-1">
-                    <span className={`${isMobile ? 'text-sm' : 'text-lg'} calligraphy text-[#1A1A1A]`}>{name}</span>
-                    <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} font-bold text-slate-400`}>
+                    <span className={`${isMobile ? 'text-sm' : 'text-lg'} calligraphy text-[#1A1A1A] group-hover/stat:text-[#B22222] transition-colors`}>{name}</span>
+                    <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} font-bold text-slate-400 group-hover/stat:text-[#B22222]/60`}>
                       {data.checkedIn}/{data.total}
                     </span>
                   </div>
                   
                   {/* Progress Bar */}
-                  <div className={`${isMobile ? 'h-1' : 'h-1.5'} w-full bg-slate-100 rounded-full overflow-hidden flex`}>
+                  <div className={`${isMobile ? 'h-1' : 'h-1.5'} w-full bg-slate-100 rounded-full overflow-hidden flex ring-1 ring-transparent group-hover/stat:ring-[#B22222]/10 transition-all`}>
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${(data.checkedIn / data.total) * 100}%` }}
@@ -384,14 +440,14 @@ const MapComponent: React.FC<MapComponentProps> = ({
                   </div>
                   
                   {!isMobile && (
-                    <div className="flex gap-3 mt-2">
+                    <div className="flex gap-3 mt-2 opacity-60 group-hover/stat:opacity-100 transition-opacity">
                       <div className="flex items-center gap-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
-                        <span className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">云游 {data.checkedIn}</span>
+                        <span className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter text-nowrap whitespace-nowrap">云游 {data.checkedIn}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#B22222]/40" />
-                        <span className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">缘起 {data.onlyFavorites}</span>
+                        <span className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter text-nowrap whitespace-nowrap">缘起 {data.onlyFavorites}</span>
                       </div>
                     </div>
                   )}

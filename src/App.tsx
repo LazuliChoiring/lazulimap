@@ -119,26 +119,27 @@ const AchievementModal = ({
   isOpen, 
   onClose, 
   userName, 
-  regionName 
+  name,
+  type = 'region'
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   userName: string; 
-  regionName: string 
+  name: string;
+  type?: 'site' | 'region';
 }) => {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          {/* Backdrop with organic fade */}
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/80 backdrop-blur-md"
             onClick={onClose}
           />
-
+          
           <motion.div
             initial={{ opacity: 0, y: 100, scale: 0.8, rotateX: 30 }}
             animate={{ 
@@ -147,7 +148,7 @@ const AchievementModal = ({
               scale: 1, 
               rotateX: 0,
               transition: { 
-                duration: 1.5, 
+                duration: 0.8, 
                 ease: [0.22, 1, 0.36, 1] 
               } 
             }}
@@ -160,15 +161,15 @@ const AchievementModal = ({
             }}
             className="relative max-w-md w-full bg-[#FDFBF7] border-4 border-[#D4AF37] p-10 shadow-[0_0_100px_rgba(212,175,55,0.3)] overflow-hidden"
           >
-            {/* Scroll Reveal Overlay (Simulates unrolling) */}
+            {/* Scroll Reveal Overlay */}
             <motion.div
               initial={{ height: "100%" }}
               animate={{ height: "0%" }}
-              transition={{ delay: 0.5, duration: 1.5, ease: "easeInOut" }}
+              transition={{ delay: 0.3, duration: 0.8, ease: "easeInOut" }}
               className="absolute inset-0 bg-[#FDFBF7] z-20 origin-top"
             />
 
-            {/* Ink Wash Background Effect */}
+            {/* Ink Wash Background */}
             <motion.div 
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 0.08, scale: 1.5 }}
@@ -176,7 +177,7 @@ const AchievementModal = ({
               className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/natural-paper.png')] pointer-events-none"
             />
             
-            {/* Decorative Corner Borders */}
+            {/* Corner Borders */}
             <div className="absolute top-0 left-0 w-16 h-16 border-t-4 border-l-4 border-[#D4AF37]" />
             <div className="absolute top-0 right-0 w-16 h-16 border-t-4 border-r-4 border-[#D4AF37]" />
             <div className="absolute bottom-0 left-0 w-16 h-16 border-b-4 border-l-4 border-[#D4AF37]" />
@@ -184,25 +185,25 @@ const AchievementModal = ({
 
             <button 
               onClick={onClose}
-              className="absolute top-6 right-6 text-slate-300 hover:text-[#B22222] transition-colors z-10"
+              className="absolute top-6 right-6 text-slate-300 hover:text-[#B22222] transition-colors z-[30]"
             >
               <X className="w-6 h-6" />
             </button>
 
             <div className="text-center space-y-8 relative z-10">
               <div className="flex justify-center">
-                <GoldenLotus className="w-40 h-40" />
+                <GoldenLotus className="w-32 h-32 md:w-36 md:h-36 drop-shadow-[0_0_20px_rgba(212,175,55,0.4)]" />
               </div>
 
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.5, duration: 1 }}
+                transition={{ delay: 0.8, duration: 0.6 }}
                 className="space-y-4"
               >
                 <div className="space-y-2">
                   <h3 className="text-[12px] font-black tracking-[0.4em] text-[#D4AF37] uppercase">
-                    云游成就 · 功德圆满
+                    {type === 'site' ? '造访胜迹 · 云游到此' : '云游成就 · 功德圆满'}
                   </h3>
                   <div className="h-px w-16 bg-[#D4AF37] mx-auto opacity-50" />
                 </div>
@@ -211,7 +212,7 @@ const AchievementModal = ({
                   <motion.p 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 2, duration: 1.5 }}
+                    transition={{ delay: 1.1, duration: 0.8 }}
                     className="calligraphy text-4xl text-[#1A1A1A] leading-tight block"
                   >
                     {userName}
@@ -219,20 +220,41 @@ const AchievementModal = ({
                   <motion.p 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 2.5, duration: 1.5 }}
+                    transition={{ delay: 1.4, duration: 0.8 }}
                     className="calligraphy text-3xl text-[#1A1A1A] leading-tight opacity-80 block"
                   >
-                    遍历 {regionName}
+                    {type === 'site' ? <>云游至 <span className="text-[#B22222] font-bold">{name}</span></> : `遍历 ${name}`}
                   </motion.p>
+                  
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 0.15, scale: 1 }}
+                    transition={{ delay: 1.8, duration: 1 }}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[20%] pointer-events-none"
+                  >
+                    <div className="w-64 h-64 border-[12px] border-[#B22222] rounded-full flex items-center justify-center rotate-[-15deg]">
+                      <span className="calligraphy text-5xl font-black text-[#B22222]">云游到此</span>
+                    </div>
+                  </motion.div>
+
                   <motion.div
                     initial={{ opacity: 0, filter: 'blur(10px)' }}
                     animate={{ opacity: 1, filter: 'blur(0px)' }}
-                    transition={{ delay: 4, duration: 2.5 }}
+                    transition={{ delay: 2.2, duration: 1.2 }}
                   >
-                    <p className="calligraphy text-2xl text-[#B22222] mt-8 leading-relaxed">
-                      上下四方，古往今来<br />
-                      自性光明，普照世间
-                    </p>
+                    <div className="calligraphy text-2xl text-[#B22222] mt-8 leading-relaxed">
+                      {type === 'site' 
+                        ? (
+                          <p>
+                            一念起处，众缘相会。<br />于此地留下足迹，亦是心中一抹清凉。
+                          </p>
+                        )
+                        : (
+                          <p>
+                            上下四方，古往今来<br />自性光明，普照世间
+                          </p>
+                        )}
+                    </div>
                   </motion.div>
                 </div>
               </motion.div>
@@ -240,23 +262,11 @@ const AchievementModal = ({
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 3.5 }}
-                className="pt-6 space-y-6"
+                transition={{ delay: 5 }}
+                className="pt-6"
               >
-                <p className="text-[11px] text-slate-400 leading-relaxed max-w-[280px] mx-auto italic">
-                  此地灵气已悉数点亮，愿此份禅意随行，<br />
-                  护佑阁下在红尘中亦能独朗心珠。
-                </p>
-                
                 <button 
-                  onClick={() => {
-                    const text = `我在【一时缘起】点亮了${regionName}的所有古迹！上下四方，古往今来，普照一切。`;
-                    if (navigator.share) {
-                      navigator.share({ title: '云游成就', text }).catch(() => {});
-                    } else {
-                      alert('截图保存这份成就，分享给同修吧！');
-                    }
-                  }}
+                  onClick={onClose}
                   className="w-full py-4 bg-[#1A1A1A] text-white text-[11px] font-bold tracking-[0.3em] uppercase flex items-center justify-center gap-3 hover:bg-black transition-all shadow-xl shadow-black/10"
                 >
                   <Share2 className="w-4 h-4" />
@@ -455,6 +465,7 @@ export default function App() {
   const [showSocialPanel, setShowSocialPanel] = useState(false);
   const [showRoutesPanel, setShowRoutesPanel] = useState(false);
   const [showCheckInSeal, setShowCheckInSeal] = useState(false);
+  const [sealHook, setSealHook] = useState('云游');
   const [activeRouteId, setActiveRouteId] = useState<string | null>(localStorage.getItem('active_route_id'));
   const [routeAchievement, setRouteAchievement] = useState<{ isOpen: boolean, route: PilgrimageRoute | null }>({ isOpen: false, route: null });
   const [favorites, setFavorites] = useState<number[]>([]);
@@ -462,7 +473,16 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [achievement, setAchievement] = useState<{ isOpen: boolean, regionName: string }>({ isOpen: false, regionName: '' });
+  const [achievement, setAchievement] = useState<{ 
+    isOpen: boolean, 
+    name: string, 
+    type: 'site' | 'region' 
+  }>({ 
+    isOpen: false, 
+    name: '', 
+    type: 'region' 
+  });
+  const [pendingAchievement, setPendingAchievement] = useState<{ name: string, type: 'site' | 'region' } | null>(null);
   const [grandAchievement, setGrandAchievement] = useState<{ isOpen: boolean }>({ isOpen: false });
   const [isGrandAchiever, setIsGrandAchiever] = useState(localStorage.getItem('is_grand_achiever') === 'true');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -508,15 +528,26 @@ export default function App() {
         // Ensure user document exists
         const userRef = doc(db, 'users', user.uid);
         getDoc(userRef).then((docSnap) => {
+          const savedName = localStorage.getItem('user_name');
           if (!docSnap.exists()) {
             setDoc(userRef, {
               uid: user.uid,
               displayName: user.displayName,
+              dignitaryTitle: savedName || '无名之辈',
               photoURL: user.photoURL,
               favorites: [],
               checkIns: [],
               friends: []
             });
+          } else {
+            // Sync savedName to Firestore if it exists locally and is different from what's stored
+            const data = docSnap.data();
+            if (savedName && savedName !== data.dignitaryTitle) {
+              updateDoc(userRef, { dignitaryTitle: savedName });
+            } else if (!savedName && data.dignitaryTitle) {
+              // Sync Firestore name back to local if local is empty
+              localStorage.setItem('user_name', data.dignitaryTitle);
+            }
           }
         });
       }
@@ -616,45 +647,66 @@ export default function App() {
     }
   };
 
-  const toggleCheckIn = async (siteId: number) => {
+  const toggleCheckIn = async (siteId: number, targetState?: boolean) => {
     const now = new Date().toISOString();
-    const isAlreadyCheckedIn = checkIns.some(c => c.siteId === siteId);
-    const previousCheckIns = [...checkIns];
+    
+    // Determine the intended action based on provided targetState or current state
+    const isRemove = targetState !== undefined ? !targetState : checkIns.some(c => c.siteId === siteId);
+    
+    // Optimistic UI Update - immediately update state to provide "fake" (instant) response
+    setCheckIns(prev => {
+      const exists = prev.some(c => c.siteId === siteId);
+      if (isRemove) {
+        return prev.filter(c => c.siteId !== siteId);
+      } else {
+        // Only add if it doesn't already exist in the previous state (to avoid duplicates)
+        if (!exists) {
+          return [...prev, { siteId, date: now }];
+        }
+        return prev;
+      }
+    });
 
-    // Optimistic UI Update
-    let optimisticCheckIns;
-    if (isAlreadyCheckedIn) {
-      optimisticCheckIns = checkIns.filter(c => c.siteId !== siteId);
-    } else {
-      optimisticCheckIns = [...checkIns, { siteId, date: now }];
-    }
-    setCheckIns(optimisticCheckIns);
-
-    // Check for route completion
-    if (!isAlreadyCheckedIn && activeRouteId) {
+    // Route completion check
+    if (!isRemove && activeRouteId) {
       const activeRoute = ROUTES_DATA.find(r => r.id === activeRouteId);
       if (activeRoute) {
-        const siteIds = [...checkIns.map(c => c.siteId), siteId];
-        const isRouteCompleted = activeRoute.steps.every(step => siteIds.includes(step.siteId));
-        if (isRouteCompleted) {
-          // Small delay to allow the check-in animation to be seen
-          setTimeout(() => {
-            setRouteAchievement({ isOpen: true, route: activeRoute });
-            setActiveRouteId(null);
-            localStorage.removeItem('active_route_id');
-          }, 1000);
-        }
+        // Need to check with the LATEST state
+        setCheckIns(current => {
+          const siteIds = current.map(c => c.siteId);
+          const isRouteCompleted = activeRoute.steps.every(step => siteIds.includes(step.siteId));
+          if (isRouteCompleted) {
+            setTimeout(() => {
+              setRouteAchievement({ isOpen: true, route: activeRoute });
+              setActiveRouteId(null);
+              localStorage.removeItem('active_route_id');
+            }, 1000);
+          }
+          return current;
+        });
       }
     }
 
     if (!currentUser) {
-      localStorage.setItem('user_checkins', JSON.stringify(optimisticCheckIns));
+      // Local storage persistence
+      const currentLocal = JSON.parse(localStorage.getItem('user_checkins') || '[]');
+      let updatedLocal;
+      if (isRemove) {
+        updatedLocal = currentLocal.filter((c: any) => 
+          (typeof c === 'number' && c !== siteId) || 
+          (typeof c === 'object' && c.siteId !== siteId)
+        );
+      } else {
+        const exists = currentLocal.some((c: any) => 
+          (typeof c === 'number' && c === siteId) || 
+          (typeof c === 'object' && c.siteId === siteId)
+        );
+        updatedLocal = exists ? currentLocal : [...currentLocal, { siteId, date: now }];
+      }
+      localStorage.setItem('user_checkins', JSON.stringify(updatedLocal));
       
-      // Check for achievements in local mode
-      if (!isAlreadyCheckedIn) {
-        const siteIds = optimisticCheckIns.map(c => c.siteId);
-        const triggered = checkAchievements(siteIds);
-        return triggered;
+      if (!isRemove) {
+        return checkAchievements(updatedLocal.map((c: any) => typeof c === 'number' ? c : c.siteId), siteId);
       }
       return null;
     }
@@ -662,43 +714,46 @@ export default function App() {
     const userRef = doc(db, 'users', currentUser.uid);
 
     try {
-      if (isAlreadyCheckedIn) {
-        // Find the exact item in the ORIGINAL array to ensure arrayRemove works
-        // If the item in DB is a number (old format), we need to remove the number
-        // We'll fetch the document once to be sure what's actually there
-        const docSnap = await getDoc(userRef);
-        if (docSnap.exists()) {
-          const dbCheckIns = docSnap.data().checkIns || [];
-          const itemToRemove = dbCheckIns.find((c: any) => 
+      // For Firestore, we fetch the latest state to be safe
+      const docSnap = await getDoc(userRef);
+      if (docSnap.exists()) {
+        const dbCheckIns = docSnap.data().checkIns || [];
+        
+        if (isRemove) {
+          const updatedCheckIns = dbCheckIns.filter((c: any) => 
+            !((typeof c === 'number' && c === siteId) || 
+              (typeof c === 'object' && c.siteId === siteId))
+          );
+          
+          await updateDoc(userRef, {
+            checkIns: updatedCheckIns
+          });
+        } else {
+          const alreadyInDb = dbCheckIns.some((c: any) => 
             (typeof c === 'number' && c === siteId) || 
             (typeof c === 'object' && c.siteId === siteId)
           );
           
-          if (itemToRemove !== undefined) {
+          if (!alreadyInDb) {
             await updateDoc(userRef, {
-              checkIns: arrayRemove(itemToRemove)
+              checkIns: arrayUnion({ siteId, date: now })
             });
           }
+          
+          const finalSiteIds = [...dbCheckIns.map((c: any) => typeof c === 'number' ? c : c.siteId), siteId];
+          return checkAchievements(finalSiteIds, siteId);
         }
-      } else {
-        const newItem = { siteId, date: now };
-        await updateDoc(userRef, {
-          checkIns: arrayUnion(newItem)
-        });
-        
-        const siteIds = optimisticCheckIns.map(c => c.siteId);
-        const triggered = checkAchievements(siteIds);
-        return triggered;
       }
     } catch (err) {
-      // Rollback on error
-      setCheckIns(previousCheckIns);
-      handleFirestoreError(err, OperationType.UPDATE, `users/${currentUser.uid}`);
+      // In case of real network error, we might want to sync back, but usually optimistic is fine
+      // unless we want to "rollback"
+      console.error("Firestore sync failed:", err);
+      // Optional: sync back logic if critical
     }
     return null;
   };
 
-  const checkAchievements = (currentCheckIns: number[]) => {
+  const checkAchievements = (currentCheckIns: number[], justCheckedInId?: number) => {
     let triggeredRegion = '';
     const now = Date.now();
     const COOLDOWN = 60000; // 1 minute cooldown for the same achievement popup
@@ -719,8 +774,13 @@ export default function App() {
     }
 
     // 2. Check districts - LOWER PRIORITY
+    // Only check the district of the site just checked in to avoid incorrect/repeat triggers
     const districts = Array.from(new Set(SITES_DATA.map(s => s.district)));
-    for (const district of districts) {
+    const targetDistricts = justCheckedInId 
+      ? [SITES_DATA.find(s => s.id === justCheckedInId)?.district].filter(Boolean) as string[]
+      : districts;
+
+    for (const district of targetDistricts) {
       const districtSites = SITES_DATA.filter(s => s.district === district);
       const isCompleted = districtSites.every(s => currentCheckIns.includes(s.id));
       
@@ -728,7 +788,7 @@ export default function App() {
         const lastTime = lastPopupTime.current[district] || 0;
         if (now - lastTime > COOLDOWN) {
           triggeredRegion = district;
-          setAchievement({ isOpen: true, regionName: district });
+          setPendingAchievement({ name: district, type: 'region' });
           lastPopupTime.current[district] = now;
           break; // Show one district achievement at a time
         }
@@ -816,15 +876,31 @@ export default function App() {
 
       <CheckInSeal 
         isVisible={showCheckInSeal} 
-        username={localStorage.getItem('user_name') || '同修'}
-        onComplete={() => setShowCheckInSeal(false)} 
+        hook={sealHook}
+        onComplete={() => {
+          setShowCheckInSeal(false);
+          if (pendingAchievement) {
+            setAchievement({ isOpen: true, name: pendingAchievement.name, type: pendingAchievement.type });
+            setPendingAchievement(null);
+          }
+        }} 
       />
 
       <OnboardingModal 
         forceShow={showOnboarding} 
-        onComplete={(name) => {
+        onComplete={async (name) => {
           setShowOnboarding(false);
-          console.log('User joined:', name);
+          localStorage.setItem('user_name', name);
+          
+          if (currentUser) {
+            try {
+              await updateDoc(doc(db, 'users', currentUser.uid), {
+                dignitaryTitle: name
+              });
+            } catch (err) {
+              console.error("Failed to update dignitary title in Firestore:", err);
+            }
+          }
         }} 
       />
       <Sidebar 
@@ -927,7 +1003,12 @@ export default function App() {
               isFavorite={favorites.includes(selectedSite.id)}
               isCheckedIn={checkIns.some(c => c.siteId === selectedSite.id)}
               onToggleFavorite={() => toggleFavorite(selectedSite.id)}
-              onToggleCheckIn={() => toggleCheckIn(selectedSite.id)}
+              onToggleCheckIn={(siteId: number, targetState?: boolean) => toggleCheckIn(siteId, targetState)}
+              onShowSuccess={(siteName) => setPendingAchievement({ name: siteName, type: 'site' })}
+              onShowSeal={() => {
+                setSealHook(localStorage.getItem('user_name') || '云游');
+                setShowCheckInSeal(true);
+              }}
             />
           )}
         </AnimatePresence>
@@ -937,7 +1018,8 @@ export default function App() {
         isOpen={achievement.isOpen}
         onClose={() => setAchievement(prev => ({ ...prev, isOpen: false }))}
         userName={localStorage.getItem('user_name') || currentUser?.displayName || '同修'}
-        regionName={achievement.regionName}
+        name={achievement.name}
+        type={achievement.type}
       />
 
       <PilgrimageRoutes 

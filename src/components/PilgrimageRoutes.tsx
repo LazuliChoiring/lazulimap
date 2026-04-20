@@ -41,8 +41,15 @@ const PilgrimageRoutes: React.FC<PilgrimageRoutesProps> = ({
   userLocation
 }) => {
   const [selectedRoute, setSelectedRoute] = useState<PilgrimageRoute | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>('全部');
 
   if (!isOpen) return null;
+
+  const categories = ['全部', ...Array.from(new Set(ROUTES_DATA.map(r => r.category)))];
+  
+  const filteredRoutes = activeCategory === '全部' 
+    ? ROUTES_DATA 
+    : ROUTES_DATA.filter(r => r.category === activeCategory);
 
   const getRouteProgress = (route: PilgrimageRoute) => {
     const completedSteps = route.steps.filter(step => checkIns.includes(step.siteId)).length;
@@ -117,8 +124,25 @@ const PilgrimageRoutes: React.FC<PilgrimageRoutesProps> = ({
                   )}
                 </div>
 
+                {/* Categories */}
+                <div className="flex flex-wrap gap-4 mb-8">
+                  {categories.map(category => (
+                    <button
+                      key={category}
+                      onClick={() => setActiveCategory(category)}
+                      className={`px-6 py-2.5 rounded-sm text-sm font-bold tracking-widest transition-all calligraphy border-b-2 ${
+                        activeCategory === category 
+                        ? 'border-[#B22222] text-[#B22222] bg-[#B22222]/5' 
+                        : 'border-transparent text-slate-400 hover:text-[#D4AF37] hover:bg-slate-50'
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="grid grid-cols-1 gap-6">
-                  {ROUTES_DATA.map((route) => {
+                  {filteredRoutes.map((route) => {
                     const progress = getRouteProgress(route);
                     const isActive = activeRouteId === route.id;
 

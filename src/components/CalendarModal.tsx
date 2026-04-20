@@ -37,7 +37,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, environm
             className="absolute inset-0 bg-[#1A1A1A]/60 backdrop-blur-sm"
           />
           <motion.div
-            initial={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ 
               opacity: 1, 
               scale: 1, 
@@ -45,24 +45,13 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, environm
               backgroundColor: isHovered ? "rgba(245, 242, 237, 1)" : "rgba(245, 242, 237, 0.85)",
               backdropFilter: isHovered ? "blur(0px)" : "blur(20px)"
             }}
-            exit={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95, y: 20 }}
-            drag={isMobile ? "y" : false}
-            dragConstraints={{ top: 0, bottom: window.innerHeight }}
-            dragElastic={0.1}
-            onDragEnd={handleDragEnd}
+            exit={{ opacity: 0, scale: 1, y: 20 }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            className={`relative w-full max-w-lg shadow-2xl overflow-hidden flex flex-col ${isMobile ? 'h-[80vh] rounded-t-[32px]' : 'max-h-[80vh] rounded-sm'}`}
+            className="relative w-[92%] md:w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh] rounded-sm"
           >
-            {/* Mobile Drag Handle */}
-            {isMobile && (
-              <div className="w-full py-4 flex justify-center shrink-0 bg-[#B22222]">
-                <div className="w-12 h-1.5 bg-white/30 rounded-full" />
-              </div>
-            )}
-
             {/* Modal Header */}
-            <div className={`p-6 border-b border-[#D4AF37]/20 bg-[#B22222] text-white flex items-center justify-between shrink-0 ${isMobile ? 'pt-2' : ''}`}>
+            <div className="p-6 border-b border-[#D4AF37]/20 bg-[#B22222] text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <Calendar className="w-6 h-6" />
                 <h2 className="text-xl font-bold calligraphy tracking-widest">佛道岁时年历</h2>

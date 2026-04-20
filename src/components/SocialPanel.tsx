@@ -16,6 +16,7 @@ interface SocialPanelProps {
 interface FriendProfile {
   uid: string;
   displayName: string;
+  dignitaryTitle?: string;
   photoURL: string;
   favorites: number[];
   checkIns: number[];
@@ -103,13 +104,35 @@ const SocialPanel: React.FC<SocialPanelProps> = ({ isOpen, onClose, sites, onSel
   useEffect(() => {
     if (!currentUser) return;
 
-    const q = query(collection(db, 'friend_requests'), where('toUid', '==', currentUser.uid), where('status', '==', 'pending'));
-    const unsub = onSnapshot(q, (snap) => {
+    // Listen for requests TO me (pending)
+    const qPending = query(collection(db, 'friend_requests'), where('toUid', '==', currentUser.uid), where('status', '==', 'pending'));
+    const unsubPending = onSnapshot(qPending, (snap) => {
       setFriendRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    return () => unsub();
-  }, [currentUser]);
+    // Listen for requests FROM me that were accepted
+    const qAccepted = query(collection(db, 'friend_requests'), where('fromUid', '==', currentUser.uid), where('status', '==', 'accepted'));
+    const unsubAccepted = onSnapshot(qAccepted, (snap) => {
+      snap.docs.forEach(async (docSnap) => {
+        const data = docSnap.data();
+        // If I'm the sender and it was accepted, add the recipient to my friends
+        if (!userProfile?.friends?.includes(data.toUid)) {
+          try {
+            await updateDoc(doc(db, 'users', currentUser.uid), {
+              friends: arrayUnion(data.toUid)
+            });
+          } catch (err) {
+            console.error("Error auto-adding friend from accepted request:", err);
+          }
+        }
+      });
+    });
+
+    return () => {
+      unsubPending();
+      unsubAccepted();
+    };
+  }, [currentUser, userProfile]);
 
   // 3. Fetch messages when in chat
   useEffect(() => {
@@ -172,7 +195,7 @@ const SocialPanel: React.FC<SocialPanelProps> = ({ isOpen, onClose, sites, onSel
 
       await addDoc(collection(db, 'friend_requests'), {
         fromUid: currentUser.uid,
-        fromName: userProfile?.displayName || '匿名同修',
+        fromName: userProfile?.dignitaryTitle || userProfile?.displayName || '匿名同修',
         toUid: newFriendUid,
         status: 'pending',
         timestamp: Date.now()
@@ -188,19 +211,19 @@ const SocialPanel: React.FC<SocialPanelProps> = ({ isOpen, onClose, sites, onSel
     if (!currentUser) return;
 
     try {
-      // Add to each other's friends list
+      // 1. Add to MY friends list (I am the 'toUid')
       await updateDoc(doc(db, 'users', currentUser.uid), {
         friends: arrayUnion(req.fromUid)
       });
-      await updateDoc(doc(db, 'users', req.fromUid), {
-        friends: arrayUnion(currentUser.uid)
-      });
-      // Delete request
+      
+      // 2. Update request status to 'accepted'
+      // This will make it disappear from my 'pending' list
+      // And trigger the auto-add on the sender's side (if they are online)
       await updateDoc(doc(db, 'friend_requests', req.id), {
         status: 'accepted'
       });
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'users');
+      handleFirestoreError(err, OperationType.WRITE, 'friend_requests');
     }
   };
 
@@ -488,7 +511,7 @@ const SocialPanel: React.FC<SocialPanelProps> = ({ isOpen, onClose, sites, onSel
                           )}
                         </div>
                         <div className="text-left flex-1 min-w-0">
-                          <div className="text-base font-bold calligraphy group-hover:text-[#B22222] truncate">{friend.displayName || '无名同修'}</div>
+                          <div className="text-base font-bold calligraphy group-hover:text-[#B22222] truncate">{friend.dignitaryTitle || friend.displayName || '无名同修'}</div>
                           <div className="text-xs text-slate-400 font-mono truncate">UID: {friend.uid.slice(0, 12)}...</div>
                         </div>
                         <MessageSquare className="w-5 h-5 text-slate-300 ml-auto group-hover:text-[#B22222] shrink-0" />
@@ -525,7 +548,7 @@ const SocialPanel: React.FC<SocialPanelProps> = ({ isOpen, onClose, sites, onSel
                     <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /> 返回
                   </button>
                   <div className="text-center">
-                    <div className="text-lg font-bold calligraphy text-[#1A1A1A]">{selectedFriend.displayName}</div>
+                    <div className="text-lg font-bold calligraphy text-[#1A1A1A]">{selectedFriend.dignitaryTitle || selectedFriend.displayName}</div>
                     <div className="text-xs text-[#00A86B] font-bold tracking-widest uppercase">在线交流</div>
                   </div>
                   <button 
