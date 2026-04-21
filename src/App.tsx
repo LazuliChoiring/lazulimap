@@ -556,20 +556,101 @@ export default function App() {
   }, []);
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const isFirstLocateRef = useRef(true);
 
-  // Get User Location
+  // Optimized Position Strategy: Native GPS -> AMap Conversion
   useEffect(() => {
+    if (!loaded || !window.AMap) return;
+
+    let watchId: number;
+
+    const handlePosition = (pos: GeolocationPosition) => {
+      const { longitude, latitude } = pos.coords;
+      
+      // Convert WGS84 to GCJ02 (Amap Coordinate System)
+      window.AMap.convertFrom([longitude, latitude], 'gps', (status: string, result: any) => {
+        if (status === 'complete' && result.info === 'ok') {
+          const lnglat = [result.locations[0].lng, result.locations[0].lat] as [number, number];
+          setUserLocation(lnglat);
+
+          // Only auto-center on the very first successful precision locate
+          if (isFirstLocateRef.current) {
+            setMapConfig(prev => ({
+              ...prev,
+              center: lnglat,
+              zoom: 16
+            }));
+            isFirstLocateRef.current = false;
+          }
+        }
+      });
+    };
+
     if (navigator.geolocation) {
-      const watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          setUserLocation([position.coords.longitude, position.coords.latitude]);
+      // Direct watch to ensure high accuracy
+      watchId = navigator.geolocation.watchPosition(
+        handlePosition,
+        (err) => {
+          console.warn("Native Geolocation error:", err);
+          // Only if native fails, we attempt AMap's IP-based locate once
+          window.AMap.plugin('AMap.Geolocation', () => {
+            const geo = new window.AMap.Geolocation({
+              enableHighAccuracy: false, // Low accuracy usually means IP
+              timeout: 5000
+            });
+            geo.getCurrentPosition((status: string, res: any) => {
+              if (status === 'complete' && isFirstLocateRef.current) {
+                setUserLocation([res.position.lng, res.position.lat]);
+              }
+            });
+          });
         },
-        (err) => console.error("Geolocation failed:", err),
-        { enableHighAccuracy: true }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
-      return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, []);
+
+    return () => {
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+    };
+  }, [loaded]);
+
+  const handleRelocate = () => {
+    if (navigator.geolocation) {
+      const options = {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      };
+      
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { longitude, latitude, accuracy } = pos.coords;
+          console.log(`Relocate success. Accuracy: ${accuracy} meters.`);
+          
+          window.AMap.convertFrom([longitude, latitude], 'gps', (status: string, result: any) => {
+            if (status === 'complete' && result.info === 'ok') {
+              const lnglat = [result.locations[0].lng, result.locations[0].lat] as [number, number];
+              setUserLocation(lnglat);
+              setMapConfig({ center: lnglat, zoom: 17 });
+            }
+          });
+        },
+        (err) => {
+          let msg = "无法感应您的准确位置。";
+          if (err.code === 1) msg += "请检查浏览器定位权限是否已开启。";
+          else if (err.code === 3) msg += "定位尝试超时，请重试或检查GPS信号。";
+          else msg += "定位服务不可用。";
+          alert(msg);
+        },
+        options
+      );
+    }
+  };
+
+  const [mapConfig, setMapConfig] = useState<{ center: [number, number], zoom: number }>({
+    center: [120.153576, 30.287459],
+    zoom: 11
+  });
 
   const handleLogin = async () => {
     if (isSigningIn) return;
@@ -963,15 +1044,22 @@ export default function App() {
 
         <MapComponent 
           sites={filteredSites} 
-          onSiteClick={handleSiteSelect}
+          onSiteClick={(site) => {
+            setSelectedSite(site);
+            setMapConfig({
+              center: site.coordinates,
+              zoom: 16
+            });
+          }}
           selectedSiteId={selectedSite?.id}
-          center={selectedSite ? selectedSite.coordinates : undefined}
-          zoom={selectedSite ? 16 : 11}
+          center={mapConfig.center}
+          zoom={mapConfig.zoom}
           favorites={favorites}
           checkIns={checkIns.map(c => c.siteId)}
           activeRoute={ROUTES_DATA.find(r => r.id === activeRouteId)}
           userLocation={userLocation}
           environment={environment}
+          onRelocate={handleRelocate}
         />
 
         {/* Environment Indicator - Floating on Map */}
