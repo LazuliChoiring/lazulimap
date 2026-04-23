@@ -38,6 +38,7 @@ export const geminiService = {
     const siteContext = sites.map(s => ({
       id: s.id,
       name: s.name,
+      shortName: s.buildingName,
       religion: s.religion,
       district: s.district,
       era: s.era,
@@ -117,7 +118,11 @@ export const geminiService = {
       }
 
       // Extract site names for highlighting/linking
-      const matchedSites = sites.filter(s => cleanText.includes(`【${s.name}】`) || cleanText.includes(s.name));
+      const matchedSites = sites.filter(s => 
+        cleanText.includes(`【${s.name}】`) || 
+        cleanText.includes(s.name) ||
+        (s.buildingName && (cleanText.includes(`【${s.buildingName}】`) || cleanText.includes(s.buildingName)))
+      );
 
       return {
         answer: cleanText,

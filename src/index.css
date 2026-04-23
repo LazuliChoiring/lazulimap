@@ -243,3 +243,48 @@ body {
   animation: spin 8s linear infinite;
 }
 
+@keyframes zen-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes zen-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.05); filter: brightness(1.2); }
+}
+
+@keyframes zen-appear {
+  from { 
+    opacity: 0; 
+    transform: scale(0.3) rotate(-15deg); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1) rotate(0deg); 
+  }
+}
+
+@keyframes marker-appear {
+  from { 
+    opacity: 0; 
+    transform: scale(0.5) translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1) translateY(0); 
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out forwards;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.zen-cluster-orb {
+  animation: marker-appear 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+

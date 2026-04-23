@@ -91,7 +91,11 @@ const MasterSearchModal: React.FC<MasterSearchModalProps> = ({
   };
 
   const matchedSites = (content: string) => {
-    return sites.filter(s => content.includes(`【${s.name}】`) || content.includes(s.name));
+    return sites.filter(s => 
+      content.includes(`【${s.name}】`) || 
+      content.includes(s.name) ||
+      (s.buildingName && (content.includes(`【${s.buildingName}】`) || content.includes(s.buildingName)))
+    );
   };
 
   const [isHovered, setIsHovered] = useState(false);

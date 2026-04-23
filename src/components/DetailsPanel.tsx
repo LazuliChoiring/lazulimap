@@ -30,6 +30,14 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'info' | 'story' | 'travelogue'>('info');
   const [aiStory, setAiStory] = useState<string | null>(null);
+
+  // Extract hook early to avoid Temporal Dead Zone (TDZ) issues in event handlers
+  const hook = useMemo(() => {
+    if (!site) return '古迹寻踪';
+    const hookMatch = site.background.match(/【(.*?)】/);
+    return hookMatch ? hookMatch[1] : '古迹寻踪';
+  }, [site]);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [userName, setUserName] = useState('');
   const [userNotes, setUserNotes] = useState<{id: string, content: string, timestamp: number, author: string}[]>([]);
@@ -225,9 +233,6 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({
 
   if (!site) return null;
 
-  // Extract hook from background: 【四字主题】
-  const hookMatch = site.background.match(/【(.*?)】/);
-  const hook = hookMatch ? hookMatch[1] : '古迹寻踪';
   const cleanBackground = site.background.replace(/【.*?】/, '').trim();
 
   if (isMobile) {
@@ -343,6 +348,12 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({
                               {c.content.map((line, li) => (
                                 <p key={li} className="text-base font-serif text-[#1A1A1A] calligraphy text-center tracking-widest">{line}</p>
                               ))}
+                              {c.note && (
+                                <p className="mt-2 text-[9px] text-slate-400 italic text-center border-t border-[#D4AF37]/5 pt-2 flex items-center justify-center gap-1">
+                                  <Sparkles className="w-2.5 h-2.5" />
+                                  {c.note}
+                                </p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -478,8 +489,12 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({
         <img
           src={site.images[0]}
           alt={site.name}
-          className="w-full h-full object-cover grayscale-[0.1] sepia-[0.05]"
+          className="w-full h-full object-cover grayscale-[0.2] contrast-[1.1] brightness-[0.95] sepia-[0.1]"
           referrerPolicy="no-referrer"
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            img.classList.add('animate-fade-in');
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A] via-[#1A1A1A]/40 to-transparent" />
         
@@ -710,7 +725,8 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({
                           </div>
                         )}
                         {couplet.note && (
-                          <p className="mt-2 text-[10px] text-slate-400 italic">
+                          <p className="mt-2 text-[10px] text-slate-400 italic flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-[#D4AF37]/60" />
                             注：{couplet.note}
                           </p>
                         )}

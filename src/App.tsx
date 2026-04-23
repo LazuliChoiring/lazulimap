@@ -8,6 +8,7 @@ import { useAmap } from './hooks/useAmap';
 import { useEnvironment } from './hooks/useEnvironment';
 import MapComponent from './components/MapComponent';
 import Sidebar from './components/Sidebar';
+import QuickSearch from './components/QuickSearch';
 import DetailsPanel from './components/DetailsPanel';
 import OnboardingModal from './components/OnboardingModal';
 import MasterSearchModal from './components/MasterSearchModal';
@@ -905,6 +906,10 @@ export default function App() {
 
   const handleSiteSelect = (site: ReligiousSite) => {
     setSelectedSite(site);
+    setMapConfig({
+      center: site.coordinates,
+      zoom: 16
+    });
   };
 
   if (error) {
@@ -949,7 +954,7 @@ export default function App() {
             isOpen={showSocialPanel}
             onClose={() => setShowSocialPanel(false)}
             sites={SITES_DATA}
-            onSelectSite={setSelectedSite}
+            onSelectSite={handleSiteSelect}
             userLocation={userLocation}
           />
         )}
@@ -1012,6 +1017,16 @@ export default function App() {
       />
       
       <main className="flex-1 relative">
+        {/* Floating Quick Search */}
+        <QuickSearch 
+          sites={SITES_DATA} 
+          onSelectSite={handleSiteSelect} 
+          onAiSearch={(query) => {
+            setMasterSearchInitialQuery(query || '');
+            setShowMasterSearch(true);
+          }}
+        />
+
         {/* Auth Button */}
         <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
           {currentUser ? (

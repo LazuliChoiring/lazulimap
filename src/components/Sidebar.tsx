@@ -7,6 +7,7 @@ import { zhCN } from 'date-fns/locale';
 import { EnvironmentState } from '../hooks/useEnvironment';
 import { getUpcomingFestivals, SOLAR_TERMS_CULTURE } from '../utils/calendar';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import DailyZenFloating from './DailyZenFloating';
 
 interface SidebarProps {
   sites: ReligiousSite[];
@@ -55,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   environment
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [localSearch, setLocalSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'fate' | 'history' | 'filter'>('fate');
   const [religionFilter, setReligionFilter] = useState<string[]>([]);
   
@@ -73,12 +75,20 @@ const Sidebar: React.FC<SidebarProps> = ({
     onFilterChange({ religion: newFilter, status: [] });
   };
 
-  // 1. "依次结缘" - Sites not visited, sorted by distance
-  // Limit to top 20 nearest to avoid overwhelming the user
+  // 1. "依次结缘" - Sites not visited, sorted by distance, with local filter
   const fateSites = useMemo(() => {
-    const unvisited = sites.filter(site => !checkIns.some(c => c.siteId === site.id));
+    let list = sites.filter(site => !checkIns.some(c => c.siteId === site.id));
     
-    let sorted = [...unvisited];
+    if (localSearch.trim()) {
+      const q = localSearch.toLowerCase();
+      list = list.filter(s => 
+        s.name.toLowerCase().includes(q) || 
+        s.district.toLowerCase().includes(q) ||
+        s.buildingName?.toLowerCase().includes(q)
+      );
+    }
+    
+    let sorted = [...list];
     if (userLocation) {
       sorted.sort((a, b) => {
         const distA = getDistance(userLocation[1], userLocation[0], a.coordinates[1], a.coordinates[0]);
@@ -108,17 +118,16 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [sheetState, setSheetState] = useState<'minimized' | 'half' | 'full'>('half');
   const dragY = useMotionValue(0);
   
-  // Snap points for mobile
+  // Snap points for mobile: [Docked, Full]
   const snapPoints = {
-    minimized: 0.9, // 90% down
-    half: 0.5,      // 50% down
-    full: 0.05      // 5% down (almost top)
+    minimized: 0.92, // Fixed bottom dock height (~72px)
+    full: 0.04      // Almost top
   };
 
   const currentSnapY = useMemo(() => {
     if (!isMobile) return 0;
     const height = window.innerHeight;
-    return height * snapPoints[sheetState];
+    return height * (sheetState === 'minimized' ? snapPoints.minimized : snapPoints.full);
   }, [sheetState, isMobile]);
 
   const handleDragEnd = (event: any, info: any) => {
@@ -126,17 +135,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     
     const velocity = info.velocity.y;
     const offset = info.offset.y;
-    const height = window.innerHeight;
     
-    // Determine next state based on velocity and position
-    if (velocity > 500 || (offset > 100 && sheetState === 'full')) {
-      setSheetState(sheetState === 'full' ? 'half' : 'minimized');
-    } else if (velocity < -500 || (offset < -100 && sheetState === 'minimized')) {
-      setSheetState(sheetState === 'minimized' ? 'half' : 'full');
-    } else if (offset < -200 && sheetState === 'half') {
-      setSheetState('full');
-    } else if (offset > 200 && sheetState === 'half') {
+    if (velocity > 400 || offset > 150) {
       setSheetState('minimized');
+    } else if (velocity < -400 || offset < -150) {
+      setSheetState('full');
     }
   };
 
@@ -155,28 +158,79 @@ const Sidebar: React.FC<SidebarProps> = ({
         className="fixed inset-x-0 bottom-0 z-[100] h-[100vh] flex flex-col"
       >
         {/* The "Lily Pad" Sheet */}
-        <div className="flex-1 bg-[#F5F2ED]/90 backdrop-blur-xl border-t border-[#D4AF37]/30 shadow-[0_-20px_50px_rgba(0,0,0,0.1)] rounded-t-[32px] flex flex-col overflow-hidden">
-          {/* Drag Handle */}
-          <div className="w-full py-4 flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing">
-            <div className="w-12 h-1.5 bg-[#D4AF37]/30 rounded-full" />
-            <div className="flex items-center gap-2">
-              {sheetState === 'minimized' && (
-                <motion.div
-                  animate={{ y: [0, -4, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <ChevronUp className="w-3 h-3 text-[#B22222]/60" />
-                </motion.div>
-              )}
-              <span className="text-[10px] font-black text-[#B22222]/40 tracking-[0.3em] uppercase calligraphy">
-                {sheetState === 'minimized' ? '向上滑动开启寻踪' : '向下滑动收起'}
-              </span>
+        <div className="flex-1 bg-[#F5F2ED]/95 backdrop-blur-2xl border-t border-[#D4AF37]/30 shadow-[0_-20px_60px_rgba(0,0,0,0.15)] rounded-t-[40px] flex flex-col overflow-hidden">
+          {/* Dock Area / Drag Handle */}
+          <div className="w-full h-[72px] shrink-0 flex flex-col items-center relative cursor-grab active:cursor-grabbing">
+            {/* Visual Handle */}
+            <div className="w-12 h-1 bg-[#D4AF37]/30 rounded-full mt-3 mb-2" />
+            
+            {/* Navigation Icons Row (Only visible when minimized or as quick-nav) */}
+            <div className="w-full px-6 flex items-center justify-between">
+               <button 
+                 onClick={(e) => { e.stopPropagation(); setSheetState('full'); setActiveTab('fate'); }}
+                 className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'fate' ? 'text-[#B22222]' : 'text-slate-400'}`}
+               >
+                 <Compass className="w-5 h-5" />
+                 <span className="text-[9px] font-bold calligraphy tracking-widest">结缘</span>
+               </button>
+               <button 
+                 onClick={(e) => { e.stopPropagation(); setSheetState('full'); setActiveTab('history'); }}
+                 className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'history' ? 'text-[#B22222]' : 'text-slate-400'}`}
+               >
+                 <History className="w-5 h-5" />
+                 <span className="text-[9px] font-bold calligraphy tracking-widest">小册</span>
+               </button>
+               <button 
+                 onClick={(e) => { e.stopPropagation(); setSheetState('full'); onOpenRoutes(); }}
+                 className="flex flex-col items-center gap-1 text-slate-400"
+               >
+                 <Navigation2 className="w-5 h-5" />
+                 <span className="text-[9px] font-bold calligraphy tracking-widest">灵感</span>
+               </button>
+               <button 
+                 onClick={(e) => { e.stopPropagation(); setSheetState('full'); onOpenSocial(); }}
+                 className="flex flex-col items-center gap-1 text-slate-400"
+               >
+                 <Users className="w-5 h-5" />
+                 <span className="text-[9px] font-bold calligraphy tracking-widest">同修</span>
+               </button>
             </div>
           </div>
 
-          {/* Content Area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Header Section */}
+      {/* Content Area */}
+      <div className={`flex-1 flex flex-col overflow-hidden transition-opacity duration-300 ${sheetState === 'minimized' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        {/* Mobile Insight Area: Weather & Daily Zen (Now cleaner) */}
+        {environment?.weather && (
+          <div className="px-6 py-4 flex items-center justify-between bg-white/40 border-b border-[#D4AF37]/10 mb-2 shrink-0">
+            <div className="flex items-center gap-3">
+               <div className="w-10 h-10 rounded-full border border-[#B22222]/30 flex items-center justify-center bg-white/60">
+                  <span className="calligraphy text-xl text-[#B22222]">
+                    {environment.weather?.weather?.includes('雨') ? '雨' : 
+                     environment.weather?.weather?.includes('云') ? '云' : 
+                     environment.weather?.weather?.includes('阴') ? '阴' : '晴'}
+                  </span>
+               </div>
+               <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-[#B22222] tracking-widest uppercase mb-0.5">
+                      {environment.timeOfDay === 'dawn' ? '晨曦' : 
+                       environment.timeOfDay === 'day' ? '正午' : 
+                       environment.timeOfDay === 'dusk' ? '晚钟' : '月明'}
+                    </span>
+                    <div className="w-1 h-1 rounded-full bg-[#D4AF37]/40" />
+                    <span className="text-[10px] font-bold text-slate-400">
+                      {environment.weather?.temperature}°C
+                    </span>
+                  </div>
+                  <span className="text-[10px] calligraphy text-slate-500 font-bold tracking-widest">
+                    {environment.calendar.lunar} · {environment.calendar.shichen}
+                  </span>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Header Section */}
             <div className="px-6 pb-4 flex flex-col gap-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex flex-col gap-2">
@@ -225,7 +279,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             {/* Tabs */}
             <div className="flex border-b border-[#D4AF37]/10 px-2">
               {[
-                { id: 'fate', label: '结缘', icon: Navigation2 },
+                { id: 'fate', label: '山门', icon: Navigation2 },
                 { id: 'history', label: '足迹', icon: History },
                 { id: 'filter', label: '筛选', icon: Filter }
               ].map(tab => (
@@ -418,26 +472,46 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Search Bar - Now a trigger for AI Master Search */}
-      <div className="p-4 md:p-6 bg-white/30 backdrop-blur-sm border-b border-[#D4AF37]/10 shrink-0">
+        {/* Search Bar - Now a trigger for AI Master Search */}
+      <div className="p-4 md:p-6 bg-white/30 backdrop-blur-sm border-b border-[#D4AF37]/10 shrink-0 space-y-4">
         <button 
           onClick={() => onSearch('')}
           className="w-full flex items-center gap-4 px-8 py-4 bg-white/80 border border-[#D4AF37]/30 rounded-full text-base hover:border-[#B22222] hover:bg-white transition-all group shadow-sm"
         >
           <Search className="w-5 h-5 text-[#D4AF37] group-hover:text-[#B22222] transition-colors" />
-          <span className="flex-1 text-left text-slate-400 calligraphy truncate">
+          <span className="flex-1 text-left text-slate-400 calligraphy truncate font-medium">
             开启智慧对话，寻访古迹正见...
           </span>
           <Sparkles className="w-5 h-5 text-[#D4AF37] group-hover:text-[#B22222] group-hover:animate-pulse" />
         </button>
+
+        {/* Local Quick Filter */}
+        <div className="relative">
+          <input 
+            type="text"
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            placeholder="在列表中快速检索名称或区域..."
+            className="w-full pl-10 pr-4 py-2 bg-white/60 border border-[#D4AF37]/15 rounded-md text-sm outline-none focus:border-[#B22222]/30 transition-all font-medium calligraphy"
+          />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+          {localSearch && (
+            <button 
+              onClick={() => setLocalSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-[#B22222]"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-[#D4AF37]/10 bg-white/10 shrink-0">
         {[
-          { id: 'fate', label: '依次结缘', icon: Navigation2 },
+          { id: 'fate', label: '山门全录', icon: Navigation2 },
           { id: 'history', label: '云游小册', icon: History },
-          { id: 'filter', label: '筛选', icon: Filter }
+          { id: 'filter', label: '分类筛选', icon: Filter }
         ].map(tab => (
           <button
             key={tab.id}

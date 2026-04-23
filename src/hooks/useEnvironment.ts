@@ -74,9 +74,10 @@ export function useEnvironment(amapKey: string) {
       // 3. Determine filter based on weather and time
       let filter = 'none';
       
-      // Weather logic
-      const isRainy = weather?.weather.includes('雨');
-      const isCloudy = weather?.weather.includes('阴') || weather?.weather.includes('多云');
+      // Weather logic - extremely safe check
+      const weatherText = weather?.weather || '';
+      const isRainy = weatherText.includes('雨');
+      const isCloudy = weatherText.includes('阴') || weatherText.includes('多云');
       
       if (isRainy) {
         // "烟雨江南" - Misty, blue-grey

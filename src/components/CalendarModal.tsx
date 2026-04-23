@@ -75,11 +75,11 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, environm
                   </div>
                   <div className="flex justify-between items-end">
                     <div>
-                      <p className="text-2xl font-bold text-[#1A1A1A] calligraphy">{environment.calendar.lunar}</p>
-                      <p className="text-sm text-slate-500 font-mono mt-1">{environment.calendar.gregorian}</p>
+                      <p className="text-2xl font-bold text-[#1A1A1A] calligraphy">{environment?.calendar?.lunar}</p>
+                      <p className="text-sm text-slate-500 font-mono mt-1">{environment?.calendar?.gregorian}</p>
                     </div>
                     <div className="text-right">
-                      <span className="text-3xl font-bold text-[#B22222] calligraphy">{environment.calendar.shichen}</span>
+                      <span className="text-3xl font-bold text-[#B22222] calligraphy">{environment?.calendar?.shichen}</span>
                     </div>
                   </div>
                 </div>
